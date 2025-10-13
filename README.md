@@ -1,0 +1,1 @@
+Właścicielem kodu jest AP.
