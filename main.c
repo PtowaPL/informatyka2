@@ -123,9 +123,6 @@ int main() {
 			printf("Nieprawid³owa opcja, spróbuj ponownie.\n");
 		}
 	}
-
-	
-	
 	free(sygnal);
 	free(sygnal_szum);
 	return 0;
