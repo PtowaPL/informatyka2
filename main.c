@@ -6,10 +6,19 @@
 #include <time.h>
 
 void wspolczynniki(float* dane, float* rozdzielczosc) {
-	printf("Podaj wspolczynnik A: ");
-	scanf("%f", &dane[0]);
-	printf("Podaj wspolczynnik B: ");
-	scanf("%f", &dane[1]);
+	do {
+		printf("Podaj wspolczynnik A: ");
+		scanf("%f", &dane[0]);
+	}
+	while (dane[0] == 0);
+
+	do
+	{
+		printf("Podaj wspolczynnik B: ");
+		scanf("%f", &dane[1]);
+	}
+	while (dane[1] == 0);
+
 	printf("Podaj wspolczynnik C: ");
 	scanf("%f", &dane[2]);
 	printf("Podaj rozdzielczosc: ");
@@ -19,15 +28,19 @@ void wspolczynniki(float* dane, float* rozdzielczosc) {
 }
 
 void granice(float* xmin, float* xmax) {
-	printf("Podaj lewa granice: ");
-	scanf("%f", xmin);
-	printf("Podaj prawa granice: ");
-	scanf("%f", xmax);
+	do
+	{
+		printf("Podaj lewa granice: ");
+		scanf("%f", xmin);
+		printf("Podaj prawa granice: ");
+		scanf("%f", xmax);
+	}
+	while (*xmax <= *xmin);
 }
 
-void generator(float* sygnal, float* dane, float xmin, float xmax, float rozdzielczosc, int probki) {
+void generator(float* sygnal, float* dane, float xmin, float xmax, float rozdzielczosc, int* probki) {
 
-	for (int i = 0; i < probki; i++) {
+	for (int i = 0; i < *probki; i++) {
 		sygnal[i] = dane[0] * sin((xmin + i * rozdzielczosc) / dane[0]) + dane[1] * cos((xmin + i * rozdzielczosc) / dane[1]) + dane[2];
 	}
 
@@ -36,18 +49,23 @@ void generator(float* sygnal, float* dane, float xmin, float xmax, float rozdzie
 
 void naprawa(float xmin, float xmax, float rozdzielczosc, int* probki) {
 	*probki = (xmax - xmin) / rozdzielczosc;
+	*probki = *probki + 1;
 }
 
 void szum(float* sygnal, float* sygnal_szum, int probki, float* wspolczynniki) {
-	float amplituda_szum;
+	int prawdopodobienstwo;
 	int zmienna;
-	printf("Podaj amplitude szumu: ");
-	scanf("%f", &amplituda_szum);
+	int szum;
+	printf("Podaj prawdopodobieñstwo szumu (procent): ");
+	scanf("%d", &prawdopodobienstwo);
 
 	for (int i = 0; i < probki; i++) {
-		zmienna = rand() % 10 + 1;
-		if (zmienna < 4) {
-			sygnal_szum[i] = sygnal[i] + amplituda_szum;
+		zmienna = rand() % 100 + 1;
+
+		if (zmienna < prawdopodobienstwo + 1) {
+
+			szum = rand() % 5 + 1;
+			sygnal_szum[i] = sygnal[i] + szum;
 		}
 		else
 			sygnal_szum[i] = sygnal[i];
@@ -56,7 +74,8 @@ void szum(float* sygnal, float* sygnal_szum, int probki, float* wspolczynniki) {
 }
 
 
-void zapis(float* sygnal, float* sygnal_szum, int ilosc_probek) {
+void zapis(float* sygnal, float* sygnal_szum, int ilosc_probek, float xmin, float rozdzielczosc) {
+	float x;
 	if (sygnal_szum == NULL) {
 		FILE* plik;
 		plik = fopen("sygnal.csv", "w");
@@ -66,7 +85,8 @@ void zapis(float* sygnal, float* sygnal_szum, int ilosc_probek) {
 			return;
 		}
 		for (int i = 0; i < ilosc_probek; i++) {
-			fprintf(plik, "%f\n", sygnal[i]);
+			x = xmin + i * rozdzielczosc;
+			fprintf(plik, "%f;%f\n", x, sygnal[i]);
 		}
 		fclose(plik);
 	}
@@ -79,10 +99,16 @@ void zapis(float* sygnal, float* sygnal_szum, int ilosc_probek) {
 			return;
 		}
 		for (int i = 0; i < ilosc_probek; i++) {
-			fprintf(plik, "%f;%f\n", sygnal[i], sygnal_szum[i]);
+			x = xmin + i * rozdzielczosc;
+			fprintf(plik, "%f;%f;%f\n", x, sygnal[i], sygnal_szum[i]);
 		}
 		fclose(plik);
 	}
+}
+
+void skracanie(int* probki) {
+	printf("Podaj nowa liczbe probek (mniejsza niz %d): ", *probki);
+	scanf("%d", probki);
 }
 
 int main() {
@@ -96,33 +122,49 @@ int main() {
 	int probki = 0;
 	int menu = -1;
 	while (menu != 4) {
-		printf("Wybierz opcje:\n 1. Generowanie sygna³u podstawowego\n 2. Wprowadzanie szumu do sygna³u\n 3. Zapis do pliku\n 4.Zakoñczenie programu\n");
+		printf("Wybierz opcje:\n1. Generuj sygna³ podstawowy\n2. Wygeneruj szum\n3. Zapis do pliku\n4. Zakoñczenie programu\n5. Skracanie sygnalu (brak zabezpieczen)\n");
 		scanf("%d", &menu);
 		switch (menu) {
 		case 1:
 			wspolczynniki(dane, &n);
 			granice(&xmin, &xmax);
-			naprawa(xmin, xmax, n, &probki);
+			do {
+				naprawa(xmin, xmax, n, &probki);
+				if (probki < 10) {
+					printf("Liczba próbek jest zbyt ma³a. Podaj inn¹ rozdzielczoœæ: ");
+					scanf("%f", &n);
+				}
+			} while (probki < 10);
 			sygnal = malloc(probki * sizeof(float));
-			generator(sygnal, dane, xmin, xmax, n, probki);
-			printf("Wygenerowano sygnal\n");
+			generator(sygnal, dane, xmin, xmax, n, &probki);
+			printf("Wygenerowano sygna³.\n");
 			break;
 		case 2:
+			if (sygnal == NULL) {
+				printf("Brak sygna³u do wygenerowania szumu.\n");
+				break;
+			}
 			sygnal_szum = malloc(probki * sizeof(float));
 			szum(sygnal, sygnal_szum, probki, dane);
-			printf("Wprowadzono szum do sygnalu\n");
+			printf("Wygenerowano szum.\n");
 			break;
 		case 3:
-			zapis(sygnal, sygnal_szum, probki);
-			printf("Zapisano do pliku\n");
+			zapis(sygnal, sygnal_szum, probki, xmin, n);
+			printf("Utworzono plik.\n");
 			break;
 		case 4:
-			printf("Zakoñczenie programu\n");
+			printf("Zakoñczenie programu.");
+			break;
+		case 5:
+			skracanie(&probki);
+			sygnal = realloc(sygnal, probki * sizeof(float));
+			printf("Skrócono sygna³.\n");
 			break;
 		default:
-			printf("Nieprawid³owa opcja, spróbuj ponownie.\n");
+			printf("Nieprawid³owa opcja. Spróbuj ponownie.");
 		}
 	}
+
 	free(sygnal);
 	free(sygnal_szum);
 	return 0;
