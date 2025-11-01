@@ -1,0 +1,253 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <time.h>
+
+void wspolczynniki(float* dane, float* rozdzielczosc) {
+	do {
+		printf("Podaj wspolczynnik A: ");
+		scanf("%f", &dane[0]);
+	}
+	while (dane[0] == 0);
+
+	do
+	{
+		printf("Podaj wspolczynnik B: ");
+		scanf("%f", &dane[1]);
+	}
+	while (dane[1] == 0);
+
+	printf("Podaj wspolczynnik C: ");
+	scanf("%f", &dane[2]);
+	printf("Podaj rozdzielczosc: ");
+	scanf("%f", rozdzielczosc);
+
+
+}
+
+void granice(float* xmin, float* xmax) {
+	do
+	{
+		printf("Podaj lewa granice: ");
+		scanf("%f", xmin);
+		printf("Podaj prawa granice: ");
+		scanf("%f", xmax);
+	}
+	while (*xmax <= *xmin);
+}
+
+void generator(float* sygnal, float* dane, float xmin, float xmax, float rozdzielczosc, int* probki) {
+
+	for (int i = 0; i < *probki; i++) {
+		sygnal[i] = dane[0] * sin((xmin + i * rozdzielczosc) / dane[0]) + dane[1] * cos((xmin + i * rozdzielczosc) / dane[1]) + dane[2];
+	}
+
+}
+
+
+void naprawa(float xmin, float xmax, float rozdzielczosc, int* probki) {
+	*probki = (xmax - xmin) / rozdzielczosc;
+	*probki = *probki + 1;
+}
+
+void szum(float* sygnal, float* sygnal_szum, int probki, float* wspolczynniki) {
+	int prawdopodobienstwo;
+	int zmienna;
+	int szum;
+	printf("Podaj prawdopodobieństwo szumu (procent): ");
+	scanf("%d", &prawdopodobienstwo);
+
+	for (int i = 0; i < probki; i++) {
+		zmienna = rand() % 100 + 1;
+
+		if (zmienna < prawdopodobienstwo + 1) {
+
+			szum = rand() % 5 + 1;
+			sygnal_szum[i] = sygnal[i] + szum;
+		}
+		else
+			sygnal_szum[i] = sygnal[i];
+
+	}
+}
+
+
+void zapis(float* sygnal, float* sygnal_szum, int ilosc_probek, float xmin, float rozdzielczosc) {
+	float x;
+	if (sygnal_szum == NULL) {
+		FILE* plik;
+		plik = fopen("sygnal.csv", "w");
+		if (plik == NULL)
+		{
+			printf("blad");
+			return;
+		}
+		for (int i = 0; i < ilosc_probek; i++) {
+			x = xmin + i * rozdzielczosc;
+			fprintf(plik, "%f;%f\n", x, sygnal[i]);
+		}
+		fclose(plik);
+	}
+	else {
+		FILE* plik;
+		plik = fopen("sygnal.csv", "w");
+		if (plik == NULL)
+		{
+			printf("blad");
+			return;
+		}
+		for (int i = 0; i < ilosc_probek; i++) {
+			x = xmin + i * rozdzielczosc;
+			fprintf(plik, "%f;%f;%f\n", x, sygnal[i], sygnal_szum[i]);
+		}
+		fclose(plik);
+	}
+}
+
+void filtr_medianowy(float* wejscie, float* wyjscie, int n) {
+	for (int i = 0; i < n; i++) {
+		float okno[5];
+		int liczba = 0;
+
+		
+		for (int j = -2; j <= 2; j++) {
+			int pozycja = i + j;
+			if (pozycja >= 0 && pozycja < n) {
+				okno[liczba] = wejscie[pozycja];
+				liczba++;
+			}
+		}
+
+	
+		for (int a = 0; a < liczba - 1; a++) {
+			for (int b = 0; b < liczba - a - 1; b++) {
+				if (okno[b] > okno[b + 1]) {
+					float temp = okno[b];
+					okno[b] = okno[b + 1];
+					okno[b + 1] = temp;
+				}
+			}
+		}
+
+		
+		wyjscie[i] = okno[liczba / 2];
+	}
+}
+
+void filtr_sredniej(float* wejscie, float* wyjscie, int n) {
+	for (int i = 0; i < n; i++) {
+		float suma = 0;
+		int liczba = 0;
+
+		
+		for (int j = -2; j <= 2; j++) {
+			int pozycja = i + j;
+			if (pozycja >= 0 && pozycja < n) {
+				suma += wejscie[pozycja];
+				liczba++;
+			}
+		}
+
+		
+		wyjscie[i] = suma / liczba;
+	}
+}
+
+void zapisz_z_filtrami(float* sygnal, float* sygnal_szum, float* sygnal_mediana, float* sygnal_srednia, int ilosc_probek, float xmin, float rozdzielczosc) {
+	float x;
+	FILE* plik;
+	plik = fopen("sygnal_z_filtrami.csv", "w");
+	if (plik == NULL)
+	{
+		printf("blad");
+		return;
+	}
+
+	for (int i = 0; i < ilosc_probek; i++) {
+		x = xmin + i * rozdzielczosc;
+		fprintf(plik, "%f;%f;%f;%f;%f\n", x, sygnal[i], sygnal_szum[i], sygnal_mediana[i], sygnal_srednia[i]);
+	}
+	fclose(plik);
+}
+
+
+
+
+int main() {
+	setlocale(LC_ALL, "polish_poland");
+	srand(time(NULL));
+	float dane[3];
+	float xmin, xmax;
+	float* sygnal = NULL;
+	float* sygnal_szum = NULL;
+	float* sygnal_mediana = NULL;
+	float* sygnal_srednia = NULL;
+	float n;
+	int probki = 0;
+	int menu = -1;
+	while (menu != 6) {
+		printf("Wybierz opcje:\n1. Generuj sygnał podstawowy\n2. Wygeneruj szum\n3. Przefiltruj sygnal\n4. Zapis do pliku bez filtracji\n5. Zapis do pliku z filtracja\n6. Zakończenie programu\n");
+		scanf("%d", &menu);
+		switch (menu) {
+		case 1:
+			wspolczynniki(dane, &n);
+			granice(&xmin, &xmax);
+			do {
+				naprawa(xmin, xmax, n, &probki);
+				if (probki < 10) {
+					printf("Liczba próbek jest zbyt mała. Podaj inną rozdzielczość: ");
+					scanf("%f", &n);
+				}
+			} while (probki < 10);
+			sygnal = malloc(probki * sizeof(float));
+			generator(sygnal, dane, xmin, xmax, n, &probki);
+			printf("Wygenerowano sygnał.\n");
+			break;
+		case 2:
+			if (sygnal == NULL) {
+				printf("Brak sygnału do wygenerowania szumu.\n");
+				break;
+			}
+			sygnal_szum = malloc(probki * sizeof(float));
+			szum(sygnal, sygnal_szum, probki, dane);
+			printf("Wygenerowano szum.\n");
+			break;
+		case 3:
+			if (sygnal_szum == NULL) {
+				printf("Brak sygnału z szumem do filtracji.\n");
+				break;
+			}
+			sygnal_mediana = malloc(probki * sizeof(float));
+			sygnal_srednia = malloc(probki * sizeof(float));
+			filtr_medianowy(sygnal_szum, sygnal_mediana, probki);
+			filtr_sredniej(sygnal_szum, sygnal_srednia, probki);
+			printf("Przefiltrowano sygnal.\n");
+			break;
+		case 4:
+			zapis(sygnal, sygnal_szum, probki, xmin, n);
+			printf("Utworzono plik.\n");
+			break;
+		case 5:
+			if (sygnal_mediana == NULL || sygnal_srednia == NULL) {
+				printf("Najpierw przefiltruj sygnal.\n");
+				break;
+			}
+			zapisz_z_filtrami(sygnal, sygnal_szum, sygnal_mediana, sygnal_srednia, probki, xmin, n);
+			printf("Utworzono plik z filtrami.\n");
+			break;
+		case 6:
+			printf("Zakończenie programu.");
+			break;
+		default:
+			printf("Nieprawidłowa opcja. Spróbuj ponownie.");
+		}
+	}
+
+	free(sygnal);
+	free(sygnal_szum);
+	free(sygnal_mediana);
+	free(sygnal_srednia);
+	return 0;
+}
