@@ -1,0 +1,100 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct obraz
+{
+	char nazwa[100];
+	char standard[3];
+	int szerokosc;
+	int wysokosc;
+	int szarosc;
+	int piksele[256][256];
+};
+
+
+void odczyt(struct obraz* img) {
+	printf("Podaj nazwe pliku do odczytu z koncowka .pgm: ");
+	scanf("%s", img->nazwa);
+	FILE* plik;
+	plik = fopen(img->nazwa, "r");
+	if (plik == NULL)
+	{
+		printf("Blad: Nie mozna otworzyc pliku '%s'\n", img->nazwa);
+		return;
+	}
+	fscanf(plik, "%s", img->standard);
+	while (fscanf(plik, "%d", &img->szerokosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+	while (fscanf(plik, "%d", &img->wysokosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+	while (fscanf(plik, "%d", &img->szarosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			while (fscanf(plik, "%d", &img->piksele[i][j]) != 1) {
+				fscanf(plik, "%*[^\n]\n");
+			}
+		}
+	}
+	printf("Odczytano plik '%s' (pominieto komentarze).\n", img->nazwa);
+	fclose(plik);
+}
+
+
+void zapis(struct obraz* img) {
+	char nazwa_pliku[100];
+	printf("Podaj nazwe pliku do zapisu z koncowka .pgm: ");
+	scanf("%s", nazwa_pliku);
+	FILE* plik;
+	plik = fopen(nazwa_pliku, "w");
+	if (plik == NULL)
+	{
+		printf("blad");
+		return;
+	}
+	fprintf(plik, "%s\n", img->standard);
+	fprintf(plik, "%d %d\n", img->szerokosc, img->wysokosc);
+	fprintf(plik, "%d\n", img->szarosc);
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			fprintf(plik, "%d ", img->piksele[i][j]);
+		}
+		fprintf(plik, "\n");
+	}
+	fclose(plik);
+	printf("Zapisano plik '%s'.\n", nazwa_pliku);
+}
+
+
+int main()
+{
+	struct obraz img;
+	int menu = -1;
+	while (menu != 0) {
+		printf("Menu:\n1. Odczytaj obraz\n2. Zapisz obraz\n0. Wyjscie\n");
+		while (scanf("%d", &menu) != 1) {
+			printf("Nieprawidlowy wybor. Sprobuj ponownie.\n");
+			while (getchar() != '\n');
+		}
+		switch (menu) {
+		case 1:
+			odczyt(&img);
+			break;
+		case 2:
+			zapis(&img);
+			break;
+		case 0:
+			printf("Koniec programu.\n");
+			break;
+		default:
+			printf("Nieprawidlowy wybor. Sprobuj ponownie.\n");
+			break;
+		}
+	}
+	return 0;
+}
