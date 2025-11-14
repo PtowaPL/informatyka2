@@ -110,10 +110,11 @@ int main()
 			break;
 		}
 	}
-
-	for (int i = 0; i < img.wysokosc; i++) {
-		free(img.piksele[i]);
+	if (img.piksele != NULL) {
+		for (int i = 0; i < img.wysokosc; i++) {
+			free(img.piksele[i]);
+		}
+		free(img.piksele);
 	}
-	free(img.piksele);
 	return 0;
 }
