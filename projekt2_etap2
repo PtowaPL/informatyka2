@@ -100,6 +100,11 @@ int main()
 			odczyt(&img);
 			break;
 		case 2:
+			if (img.piksele == NULL) {
+				printf("Brak wczytanego obrazu. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			else
 			zapis(&img);
 			break;
 		case 0:
