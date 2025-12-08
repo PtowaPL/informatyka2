@@ -1,0 +1,626 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <crtdbg.h>
+#include <time.h>
+
+struct obraz
+{
+	char nazwa[100];
+	char standard[3];
+	int szerokosc;
+	int wysokosc;
+	int szarosc;
+	int** piksele;
+};
+
+
+int odczyt(struct obraz* img) {
+	printf("Podaj nazwe pliku do odczytu z koncowka .pgm: ");
+	scanf("%s", img->nazwa);
+	FILE* plik;
+	plik = fopen(img->nazwa, "r");
+	if (plik == NULL)
+	{
+		printf("Blad: Nie mozna otworzyc pliku '%s'\n", img->nazwa);
+		return 0;
+	}
+	fscanf(plik, "%s", img->standard);
+	while (fscanf(plik, "%d", &img->szerokosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+	while (fscanf(plik, "%d", &img->wysokosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+	while (fscanf(plik, "%d", &img->szarosc) != 1) {
+		fscanf(plik, "%*[^\n]\n");
+	}
+
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			while (fscanf(plik, "%d", &img->piksele[i][j]) != 1) {
+				fscanf(plik, "%*[^\n]\n");
+			}
+		}
+	}
+	printf("Odczytano plik '%s' (pominieto komentarze).\n", img->nazwa);
+	fclose(plik);
+	return 1;
+}
+
+
+void zapis(struct obraz* img) {
+	char nazwa_pliku[100];
+	printf("Podaj nazwe pliku do zapisu z koncowka .pgm: ");
+	scanf("%s", nazwa_pliku);
+	FILE* plik;
+	plik = fopen(nazwa_pliku, "w");
+	if (plik == NULL)
+	{
+		printf("blad");
+		return;
+	}
+	fprintf(plik, "%s\n", img->standard);
+	fprintf(plik, "%d %d\n", img->szerokosc, img->wysokosc);
+	fprintf(plik, "%d\n", img->szarosc);
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			fprintf(plik, "%d ", img->piksele[i][j]);
+		}
+		fprintf(plik, "\n");
+	}
+	fclose(plik);
+	printf("Zapisano plik '%s'.\n", nazwa_pliku);
+}
+
+void obrot(struct obraz* img) {
+	int** nowy_obraz;
+	nowy_obraz = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		nowy_obraz[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			nowy_obraz[img->wysokosc - i - 1][j] = img->piksele[i][j];
+		}
+	}
+	
+	for (int i = 0; i < img->wysokosc; i++) {
+		free(img->piksele[i]);
+	}
+	free(img->piksele);
+	int temp = img->szerokosc;
+	img->szerokosc = img->wysokosc;
+	img->wysokosc = temp;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = nowy_obraz[j][i];
+		}
+	}
+
+	for (int i = 0; i < img->szerokosc; i++) {
+		free(nowy_obraz[i]);
+	}
+	free(nowy_obraz);
+}
+
+void histogram(struct obraz* img) {
+	int tablica[256] = { 0 };
+	for (int z = 0; z <= img->szarosc; z++) {
+		for (int i = 0; i < img->wysokosc; i++) {
+			for (int j = 0; j < img->szerokosc; j++) {
+				if (img->piksele[i][j] == z) {
+					tablica[z]++;
+				}
+			}
+		}
+	}
+	FILE* plik;
+	plik = fopen("histogram.csv", "w");
+	for (int i = 0; i <= img->szarosc; i++) {
+		fprintf(plik, "%d;%d\n", i, tablica[i]);
+	}
+	fclose(plik);
+}
+
+void negatyw(struct obraz* img) {
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = img->szarosc - img->piksele[i][j];
+		}
+	}
+}
+
+void odbiciex(struct obraz* img) {
+	for (int i = 0; i < img->wysokosc / 2; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			int temp = img->piksele[i][j];
+			img->piksele[i][j] = img->piksele[img->wysokosc - i - 1][j];
+			img->piksele[img->wysokosc - i - 1][j] = temp;
+		}
+	}
+}
+
+void odbiciey(struct obraz* img) {
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc / 2; j++) {
+			int temp = img->piksele[i][j];
+			img->piksele[i][j] = img->piksele[i][img->szerokosc - j - 1];
+			img->piksele[i][img->szerokosc - j - 1] = temp;
+		}
+	}
+}
+
+void szum(struct obraz* img) {
+	int procent;
+	srand(time(NULL));
+	printf("Podaj procent szumu: ");
+	scanf("%d", &procent);
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			int zmienna = rand() % 100 + 1;
+			if (zmienna <= procent) {
+				int temp = rand() % 2;
+				if (temp == 0) {
+					img->piksele[i][j] = 0;
+				}
+				else {
+					img->piksele[i][j] = img->szarosc;
+				}
+			}
+		}
+	}
+}
+
+void mediana(struct obraz* img) {
+	int** nowy_obraz;
+	nowy_obraz = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		nowy_obraz[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 1; i < img->wysokosc - 1; i++) {
+		for (int j = 1; j < img->szerokosc - 1; j++) {
+			int okno[9];
+			int numer = 0;
+			for (int k = -1; k <= 1; k++) {
+				for (int l = -1; l <= 1; l++) {
+					okno[numer] = img->piksele[i + k][j + l];
+					numer++;
+				}
+			}
+			
+			for (int m = 0; m < 9 - 1; m++) {
+				for (int n = 0; n < 9 - m - 1; n++) {
+					if (okno[n] > okno[n + 1]) {
+						int temp = okno[n];
+						okno[n] = okno[n + 1];
+						okno[n + 1] = temp;
+					}
+				}
+			}
+			nowy_obraz[i][j] = okno[4];
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = nowy_obraz[i][j];
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		free(nowy_obraz[i]);
+	}
+	free(nowy_obraz);
+}
+
+void Gauss(struct obraz* img) {
+	int okno[3][3] = { {1, 2, 1}, {2, 4, 2}, {1, 2, 1} };
+	int waga = 16;
+	int** nowy_obraz;
+	nowy_obraz = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		nowy_obraz[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 1; i < img->wysokosc - 1; i++) {
+		for (int j = 1; j < img->szerokosc - 1; j++) {
+			int suma = 0;
+			for (int k = -1; k <= 1; k++) {
+				for (int l = -1; l <= 1; l++) {
+					suma += img->piksele[i + k][j + l] * okno[k + 1][l + 1];
+				}
+			}
+			nowy_obraz[i][j] = suma / waga;
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = nowy_obraz[i][j];
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		free(nowy_obraz[i]);
+	}
+	free(nowy_obraz);
+
+}
+
+void dodaj_obraz(struct obraz** tablica_obrazow,int* rozmiar) {
+	(*rozmiar)++;
+	int* temp = realloc(*tablica_obrazow, *rozmiar * sizeof(struct obraz));
+	if (temp != NULL)
+	{
+		*tablica_obrazow = temp;
+	}
+	else (*rozmiar)--;
+}
+
+void zwolnij_obraz(struct obraz* img) {
+	if (img->piksele != NULL) {
+		for (int i = 0; i < img->wysokosc; i++) {
+			free(img->piksele[i]);
+		}
+		free(img->piksele);
+		img->piksele = NULL;
+	}
+}
+
+void lista_obrazow(struct obraz* tablica_obrazow, int rozmiar) {
+	printf("Lista obrazow:\n");
+	for (int i = 0; i < rozmiar; i++) {
+		printf("%d. %s\n", i + 1, tablica_obrazow[i].nazwa);
+	}
+}
+
+void usun_obraz(struct obraz** tablica_obrazow, int* rozmiar, int indeks) {
+	zwolnij_obraz(&(*tablica_obrazow)[indeks]);
+	for (int i = indeks; i < (*rozmiar) - 1; i++) {
+		(*tablica_obrazow)[i] = (*tablica_obrazow)[i + 1];
+	}
+	(*rozmiar)--;
+	struct obraz* temp = realloc(*tablica_obrazow, (*rozmiar) * sizeof(struct obraz));
+	if (temp != NULL || *rozmiar == 0)
+	{
+		*tablica_obrazow = temp;
+	}
+}
+
+void losowe_pola(struct obraz* img) {
+	srand(time(NULL));
+	int zmienna;
+	strcpy(img->nazwa, "losowy.pgm");
+	strcpy(img->standard, "P2");
+	img->szerokosc = 100;
+	img->wysokosc = 100;
+	img->szarosc = 255;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			zmienna = rand() % (img->szarosc + 1);
+			img->piksele[i][j] = zmienna;
+		}
+	}	
+}
+
+void gradient_skos(struct obraz* img) {
+	strcpy(img->nazwa, "gradient.pgm");
+	strcpy(img->standard, "P2");
+	img->szerokosc = 100;
+	img->wysokosc = 100;
+	img->szarosc = 255;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+
+	/*
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = j + i;
+		}
+	}
+	
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = i;
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = j;
+		}
+	}
+	*/
+}
+
+void zliczanie(struct obraz* img) {
+	int* suma = NULL;
+	suma = malloc(img->wysokosc * sizeof(int));
+	for (int i = 0; i < img->wysokosc; i++) {
+		suma[i] = 0;
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			suma[i] += img->piksele[i][j];
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		printf("Suma pikseli w wierszu %d: %d\n", i + 1, suma[i]);
+	}
+	free(suma);
+}
+
+void szachownica(struct obraz* img) {
+	strcpy(img->nazwa, "szachownica.pgm");
+	strcpy(img->standard, "P2");
+	img->szerokosc = 100;
+	img->wysokosc = 100;
+	img->szarosc = 255;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	int zmienna;
+	printf("Podaj wartosc szarosci dla bialych pol: ");
+	scanf("%d", &zmienna);
+	/*
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			if ((i / 10 + j / 10) % 2 == 0) {
+				img->piksele[i][j] = 0;
+			}
+			else {
+				srand(time(NULL));
+				zmienna = rand() % (img->szarosc + 1);
+				img->piksele[i][j] = zmienna;
+			}
+		}
+	}
+	*/
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = 0;
+			}
+		}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			if ((i + j) % 2 == 1) {
+				img->piksele[i][j] = zmienna;
+			}
+		}
+	}
+}
+
+void choinka(struct obraz* img) {
+	strcpy(img->nazwa, "choinka.pgm");
+	strcpy(img->standard, "P2");
+	img->szerokosc = 100;
+	img->wysokosc = 100;
+	img->szarosc = 255;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = 0;
+		}
+	}
+	int srodek = img->szerokosc / 2;
+	for (int i = 0; i < img->wysokosc / 2; i++) {
+		for (int j = -i; j <= i; j++) {
+			img->piksele[i][srodek + j] = img->szarosc;
+		}
+	}
+	for (int i = img->wysokosc / 2; i < img->wysokosc; i++) {
+		for (int j = -img->wysokosc / 10; j <= img->wysokosc / 10; j++) {
+			img->piksele[i][srodek + j] = img->szarosc;
+		}
+	}
+}
+
+void gwiazdka(struct obraz* img) {
+	strcpy(img->nazwa, "gwiazdka.pgm");
+	strcpy(img->standard, "P2");
+	img->szerokosc = 100;
+	img->wysokosc = 100;
+	img->szarosc = 255;
+	img->piksele = malloc(img->wysokosc * sizeof(int*));
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i] = malloc(img->szerokosc * sizeof(int));
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		for (int j = 0; j < img->szerokosc; j++) {
+			img->piksele[i][j] = 0;
+		}
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i][img->szerokosc / 2] = img->szarosc;
+		img->piksele[i][img->szerokosc / 2 - 1] = img->szarosc;
+	}
+	for (int j = 0; j < img->szerokosc; j++) {
+		img->piksele[img->wysokosc/2][j] = img->szarosc;
+		img->piksele[img->wysokosc / 2 - 1][j] = img->szarosc;
+	}
+	for (int i = 0; i < img->wysokosc; i++) {
+		img->piksele[i][i] = img->szarosc;
+		img->piksele[img->wysokosc - i - 1][i] = img->szarosc;
+	}
+}
+
+int main()
+{
+	struct obraz* tablica_obrazow = NULL;
+	int rozmiar = 0;
+	int menu = -1;
+	int wybor = -1;
+	while (menu != 0) {
+		printf("Menu:\n1. Odczytaj obraz\n2. Zapisz obraz\n0. Wyjscie\n");
+		while (scanf("%d", &menu) != 1) {
+			printf("Nieprawidlowy wybor. Sprobuj ponownie.\n");
+			while (getchar() != '\n');
+		}
+		switch (menu) {
+		case 1:
+			dodaj_obraz(&tablica_obrazow, &rozmiar);
+			if (odczyt(&tablica_obrazow[rozmiar - 1]) == 0) {
+				rozmiar--;
+				printf("Nie dodano obrazu do tablicy.\n");
+				break;
+			}
+			else
+			wybor = rozmiar;
+			break;
+		case 2:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do zapisu. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			zapis(&tablica_obrazow[wybor-1]);
+			break;	
+		case 3:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			obrot(&tablica_obrazow[wybor-1]);
+			printf("Wykonano obrot obrazu o 90 stopni.\n");
+			break;
+		case 4:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			histogram(&tablica_obrazow[wybor-1]);
+			printf("Wykonano histogram obrazu.\n");
+			break;
+		case 5:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			negatyw(&tablica_obrazow[wybor-1]);
+			printf("Wykonano negatyw obrazu.\n");
+			break;
+		case 6:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			odbiciex(&tablica_obrazow[wybor-1]);
+			printf("6.\n");
+			break;
+		case 7:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			odbiciey(&tablica_obrazow[wybor-1]);
+			printf("7.\n");
+			break;
+		case 8:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			szum(&tablica_obrazow[wybor-1]);
+			printf("8.\n");
+			break;
+		case 9:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			mediana(&tablica_obrazow[wybor-1]);
+			printf("9.\n");
+			break;
+		case 10:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do edycji. Najpierw odczytaj obraz.\n");
+				break;
+			}
+			Gauss(&tablica_obrazow[wybor-1]);
+			printf("10.\n");
+			break;
+		case 11:
+			lista_obrazow(tablica_obrazow, rozmiar);
+			break;
+		case 12:
+			if (rozmiar == 0) {
+				printf("Brak obrazow.\n");
+				break;
+			}
+			do {
+				printf("Wybierz obraz do edycji (1-%d): ", rozmiar);
+				lista_obrazow(tablica_obrazow, rozmiar);
+				scanf("%d", &wybor);
+			}
+			while (wybor < 1 || wybor > rozmiar);
+			break;
+		case 13:
+			if (rozmiar == 0) {
+				printf("Brak obrazow do usuniecia.\n");
+				break;
+			}
+			int usun;
+			do {
+			printf("Wybierz obraz do usuniecia (1-%d): ", rozmiar);
+			lista_obrazow(tablica_obrazow, rozmiar);
+			scanf("%d", &usun);
+			}
+			while (usun < 1 || usun > rozmiar);
+			usun_obraz(&tablica_obrazow, &rozmiar, usun - 1);
+			printf("Usunieto obraz.\n");
+			if (rozmiar == 0) {
+				wybor = -1;
+			}
+			else if (wybor == usun) {
+				wybor = 1;
+			}
+			else if (wybor > usun) {
+				wybor--;
+			}
+			break;
+		case 14:
+			dodaj_obraz(&tablica_obrazow, &rozmiar);
+			wybor = rozmiar;
+			//losowe_pola(&tablica_obrazow[rozmiar - 1]);
+			//gradient_skos(&tablica_obrazow[rozmiar - 1]);
+			//szachownica(&tablica_obrazow[rozmiar - 1]);
+			//choinka(&tablica_obrazow[rozmiar - 1]);
+			//gwiazdka(&tablica_obrazow[rozmiar - 1]);
+			printf("Dodano losowy obraz.\n");
+			break;
+		case 15:
+			zliczanie(&tablica_obrazow[wybor - 1]);
+			break;
+		case 0:
+			printf("Koniec programu.\n");
+			break;
+		default:
+			printf("Nieprawidlowy wybor. Sprobuj ponownie.\n");
+			break;
+		}
+	}
+	for (int i = 0; i < rozmiar; i++) {
+		zwolnij_obraz(&tablica_obrazow[i]);
+	}
+	if (tablica_obrazow != NULL) {
+		free(tablica_obrazow);
+		tablica_obrazow = NULL;
+	}
+	_CrtDumpMemoryLeaks();
+	return 0;
+}
